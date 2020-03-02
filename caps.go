@@ -3,6 +3,7 @@ package gst
 /*
 #include <stdlib.h>
 #include <gst/gst.h>
+#include <glib-object.h>
 
 int capsRefCount(GstCaps *c) {
 	return GST_CAPS_REFCOUNT(c);
@@ -11,26 +12,21 @@ int capsRefCount(GstCaps *c) {
 import "C"
 
 import (
-	"unsafe"
 	"github.com/ziutek/glib"
+	"unsafe"
 )
 
-type Caps C.GstCaps
+type (
+	Caps      struct{ MiniObject }
+	Structure C.GstStructure
+)
+
+func (s *Structure) g() *C.GstStructure {
+	return (*C.GstStructure)(s)
+}
 
 func (c *Caps) g() *C.GstCaps {
-	return (*C.GstCaps)(c)
-}
-
-func (c *Caps) Ref() *Caps {
-	return (*Caps)(C.gst_caps_ref(c.g()))
-}
-
-func (c *Caps) Unref() {
-	C.gst_caps_unref(c.g())
-}
-
-func (c *Caps) RefCount() int {
-	return int(C.capsRefCount(c.g()))
+	return (*C.GstCaps)(c.GetPtr())
 }
 
 func (c *Caps) AppendStructure(media_type string, fields glib.Params) {
@@ -41,6 +37,18 @@ func (c *Caps) GetSize() int {
 	return int(C.gst_caps_get_size(c.g()))
 }
 
+func (c *Caps) GetStructure(idx uint) *Structure {
+	return (*Structure)(unsafe.Pointer(
+		C.gst_caps_get_structure(c.g(), C.guint(idx)),
+	))
+}
+
+func (s *Structure) GetValue(fname string) *glib.Value {
+	cs := (*C.gchar)(C.CString(fname))
+	defer C.free(unsafe.Pointer(cs))
+	return (*glib.Value)(unsafe.Pointer(C.gst_structure_get_value(s.g(), cs)))
+}
+
 func (c *Caps) String() string {
 	s := (*C.char)(C.gst_caps_to_string(c.g()))
 	defer C.free(unsafe.Pointer(s))
@@ -48,11 +56,15 @@ func (c *Caps) String() string {
 }
 
 func NewCapsAny() *Caps {
-	return (*Caps)(C.gst_caps_new_any())
+	c := new(Caps)
+	c.SetPtr(glib.Pointer(C.gst_caps_new_any()))
+	return c
 }
 
 func NewCapsEmpty() *Caps {
-	return (*Caps)(C.gst_caps_new_empty())
+	c := new(Caps)
+	c.SetPtr(glib.Pointer(C.gst_caps_new_empty()))
+	return c
 }
 
 func NewCapsSimple(media_type string, fields glib.Params) *Caps {
@@ -64,6 +76,7 @@ func NewCapsSimple(media_type string, fields glib.Params) *Caps {
 func CapsFromString(s string) *Caps {
 	cs := (*C.gchar)(C.CString(s))
 	defer C.free(unsafe.Pointer(cs))
-	return (*Caps)(C.gst_caps_from_string(cs))
+	c := new(Caps)
+	c.SetPtr(glib.Pointer(C.gst_caps_from_string(cs)))
+	return c
 }
-

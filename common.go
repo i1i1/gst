@@ -40,9 +40,9 @@ Fields _parse_struct(GstStructure *s) {
 import "C"
 
 import (
+	"fmt"
 	"os"
 	"unsafe"
-	"fmt"
 
 	"github.com/ziutek/glib"
 )
@@ -90,9 +90,9 @@ func (f Fourcc) Value() *glib.Value {
 func (f Fourcc) String() string {
 	buf := make([]byte, 4)
 	buf[0] = byte(f)
-	buf[1] = byte(f>>8)
-	buf[2] = byte(f>>16)
-	buf[3] = byte(f>>32)
+	buf[1] = byte(f >> 8)
+	buf[2] = byte(f >> 16)
+	buf[3] = byte(f >> 32)
 	return string(buf)
 }
 
@@ -136,6 +136,16 @@ func ValueRange(v *glib.Value) *IntRange {
 	}
 }
 
+func (*Caps) Type() glib.Type {
+	return TYPE_CAPS
+}
+
+func (c *Caps) Value() *glib.Value {
+	v := glib.NewValue(c.Type())
+	C.gst_value_set_caps(v2g(v), c.g())
+	return v
+}
+
 type Fraction struct {
 	Numer, Denom int
 }
@@ -161,8 +171,7 @@ func ValueFraction(v *glib.Value) *Fraction {
 	}
 }
 
-var TYPE_FOURCC, TYPE_INT_RANGE, TYPE_FRACTION glib.Type
-
+var TYPE_FOURCC, TYPE_INT_RANGE, TYPE_FRACTION, TYPE_CAPS glib.Type
 
 func init() {
 	alen := C.int(len(os.Args))
@@ -171,7 +180,7 @@ func init() {
 		argv[i] = C.CString(s)
 	}
 	ret := C._gst_init(&alen, &argv[0])
-	argv = (*[1<<16]*C.char)(unsafe.Pointer(ret))[:alen]
+	argv = (*[1 << 16]*C.char)(unsafe.Pointer(ret))[:alen]
 	os.Args = make([]string, alen)
 	for i, s := range argv {
 		os.Args[i] = C.GoString(s)
@@ -179,10 +188,11 @@ func init() {
 
 	TYPE_INT_RANGE = glib.Type(C.gst_int_range_get_type())
 	TYPE_FRACTION = glib.Type(C.gst_fraction_get_type())
+	TYPE_CAPS = glib.Type(C.GST_TYPE_CAPS)
 }
 
 func GetVersion() (int, int, int, int) {
-	var major,minor,micro,nano C.guint
+	var major, minor, micro, nano C.guint
 	C.gst_version(&major, &minor, &micro, &nano)
 	return int(major), int(minor), int(micro), int(nano)
 }
@@ -203,7 +213,7 @@ func parseGstStructure(s *C.GstStructure) (name string, fields glib.Params) {
 	name = C.GoString((*C.char)(C.gst_structure_get_name(s)))
 	ps := C._parse_struct(s)
 	n := (int)(ps.n)
-	tab := (*[1<<16]C.Field)(unsafe.Pointer(ps.tab))[:n]
+	tab := (*[1 << 16]C.Field)(unsafe.Pointer(ps.tab))[:n]
 	fields = make(glib.Params)
 	for _, f := range tab {
 		fields[C.GoString(f.name)] = g2v(f.val).Get()

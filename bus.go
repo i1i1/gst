@@ -14,12 +14,18 @@ type Bus struct {
 	GstObj
 }
 
+func (b *Bus) AsBus() *Bus {
+	return b
+}
+
 func (b *Bus) g() *C.GstBus {
 	return (*C.GstBus)(b.GetPtr())
 }
 
-func (b *Bus) AsBus() *Bus {
-	return b
+func (b *Bus) AsObject() *glib.Object {
+	o := new(glib.Object)
+	o.SetPtr(glib.Pointer(b))
+	return o
 }
 
 func (b *Bus) Post(msg *Message) bool {
@@ -87,5 +93,11 @@ func (b *Bus) Poll(events MessageType, timeout int64) *Message {
 func NewBus() *Bus {
 	b := new(Bus)
 	b.SetPtr(glib.Pointer(C.gst_bus_new()))
+	return b
+}
+
+func (p *Pipeline) GetBus() *Bus {
+	b := new(Bus)
+	b.SetPtr(glib.Pointer(C.gst_pipeline_get_bus(p.g())))
 	return b
 }
